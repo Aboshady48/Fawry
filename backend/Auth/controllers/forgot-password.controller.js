@@ -40,7 +40,6 @@ exports.forgotPassword = async (req, res) => {
     // ✅ Try to send email but don't crash if it fails
     try {
       await sendResetTokenEmail(user.email, rawToken);
-      console.log("Email sent ✅");
     } catch (emailErr) {
       console.error("Email failed (but token was saved):", emailErr.message);
     }
