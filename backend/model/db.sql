@@ -6,7 +6,7 @@ CREATE TYPE wallet_status    AS ENUM ('active', 'suspended');
 CREATE TYPE otp_status       AS ENUM ('pending', 'verified', 'expired');
 CREATE TYPE admin_role       AS ENUM ('super_admin', 'support', 'finance');
 
--- ─── Users Table ─────────────────────────────────────────────────────────────
+-- ─Users Table ─────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL          PRIMARY KEY,
