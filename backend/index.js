@@ -11,6 +11,7 @@ const indexRouter = require("./router/index.route");
 app.use(express.json());
 app.use("/api/v1", indexRouter);
 
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
