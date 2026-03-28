@@ -5,6 +5,9 @@ const isAdmin               = require("../../middleware/isAdmin.middleware");
 const getUserByIdController = require("../controllers/getUserById.controller");
 const getAllUsersController = require("../controllers/getAllUsers.controller");
 const updateUserStatusController = require("../controllers/updateUserStatus.controller");
+const getRevenueController = require("../controllers/getRevenue.controller");
+
+adminRouter.get("/revenue", authMiddleware, isAdmin, getRevenueController.getRevenue);
 
 adminRouter.get("/users", authMiddleware, isAdmin, getAllUsersController.getAllUsers);
 
