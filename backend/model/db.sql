@@ -159,3 +159,33 @@ ADD COLUMN reset_token_expires_at TIMESTAMP;
 
 ALTER TABLE users
 ADD COLUMN pin TEXT DEFAULT NULL;
+
+CREATE TYPE transaction_type    AS ENUM ('topup', 'transfer', 'bill_payment', 'withdrawal', 'refund');
+CREATE TYPE transaction_status  AS ENUM ('initiated', 'pending', 'processing', 'completed', 'failed', 'reversed');
+CREATE TYPE payment_method      AS ENUM ('card', 'bank_transfer', 'agent');
+
+CREATE TABLE IF NOT EXISTS transactions (
+  id                SERIAL              PRIMARY KEY,
+  reference_no      VARCHAR(20)         UNIQUE NOT NULL,
+  wallet_id         INTEGER             NOT NULL REFERENCES wallets(id) ON DELETE CASCADE,
+  user_id           INTEGER             NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  type              transaction_type    NOT NULL,
+  status            transaction_status  NOT NULL DEFAULT 'initiated',
+  amount            NUMERIC(12, 2)      NOT NULL CHECK (amount > 0),
+  fee               NUMERIC(12, 2)      NOT NULL DEFAULT 0.00,
+  payment_method    payment_method,
+  description       TEXT,
+  metadata          JSONB               DEFAULT '{}',
+  created_at        TIMESTAMP           NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMP           NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_transactions_wallet_id   ON transactions(wallet_id);
+CREATE INDEX idx_transactions_user_id     ON transactions(user_id);
+CREATE INDEX idx_transactions_status      ON transactions(status);
+CREATE INDEX idx_transactions_type        ON transactions(type);
+CREATE INDEX idx_transactions_reference   ON transactions(reference_no);
+
+CREATE TRIGGER transactions_updated_at
+  BEFORE UPDATE ON transactions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
