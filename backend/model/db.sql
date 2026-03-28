@@ -189,3 +189,27 @@ CREATE INDEX idx_transactions_reference   ON transactions(reference_no);
 CREATE TRIGGER transactions_updated_at
   BEFORE UPDATE ON transactions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
+  -- 1. Platform revenue table
+CREATE TABLE IF NOT EXISTS platform_revenue (
+  id            SERIAL          PRIMARY KEY,
+  transaction_id INTEGER        NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  amount        NUMERIC(12, 2)  NOT NULL,
+  type          VARCHAR(50)     NOT NULL, -- topup_fee, transfer_fee, bill_fee
+  created_at    TIMESTAMP       NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_platform_revenue_transaction ON platform_revenue(transaction_id);
+CREATE INDEX idx_platform_revenue_created_at  ON platform_revenue(created_at);
+
+-- 2. Platform wallet table (one row only)
+CREATE TABLE IF NOT EXISTS platform_wallet (
+  id            SERIAL          PRIMARY KEY,
+  balance       NUMERIC(15, 2)  NOT NULL DEFAULT 0.00,
+  total_earned  NUMERIC(15, 2)  NOT NULL DEFAULT 0.00,
+  updated_at    TIMESTAMP       NOT NULL DEFAULT NOW()
+);
+
+-- 3. Insert the one platform wallet row
+INSERT INTO platform_wallet (balance, total_earned) VALUES (0.00, 0.00);
