@@ -213,3 +213,16 @@ CREATE TABLE IF NOT EXISTS platform_wallet (
 
 -- 3. Insert the one platform wallet row
 INSERT INTO platform_wallet (balance, total_earned) VALUES (0.00, 0.00);
+
+-- Store user bank accounts
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id              SERIAL        PRIMARY KEY,
+  user_id         INTEGER       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bank_name       VARCHAR(100)  NOT NULL,
+  account_number  VARCHAR(50)   NOT NULL,
+  account_name    VARCHAR(100)  NOT NULL,
+  is_default      BOOLEAN       NOT NULL DEFAULT FALSE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_bank_accounts_user_id ON bank_accounts(user_id);
