@@ -226,3 +226,22 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
 );
 
 CREATE INDEX idx_bank_accounts_user_id ON bank_accounts(user_id);
+
+CREATE TYPE payment_request_status AS ENUM ('pending', 'paid', 'cancelled', 'expired');
+
+CREATE TABLE IF NOT EXISTS payment_requests (
+  id            SERIAL                  PRIMARY KEY,
+  reference_no  TEXT                    UNIQUE NOT NULL,
+  requester_id  INTEGER                 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  payer_phone   VARCHAR(20),
+  amount        NUMERIC(12, 2)          NOT NULL CHECK (amount > 0),
+  note          TEXT,
+  status        payment_request_status  NOT NULL DEFAULT 'pending',
+  expires_at    TIMESTAMP               NOT NULL,
+  paid_at       TIMESTAMP,
+  created_at    TIMESTAMP               NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_payment_requests_requester ON payment_requests(requester_id);
+CREATE INDEX idx_payment_requests_status    ON payment_requests(status);
+CREATE INDEX idx_payment_requests_reference ON payment_requests(reference_no);
