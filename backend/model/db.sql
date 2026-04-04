@@ -245,3 +245,96 @@ CREATE TABLE IF NOT EXISTS payment_requests (
 CREATE INDEX idx_payment_requests_requester ON payment_requests(requester_id);
 CREATE INDEX idx_payment_requests_status    ON payment_requests(status);
 CREATE INDEX idx_payment_requests_reference ON payment_requests(reference_no);
+
+
+CREATE TABLE IF NOT EXISTS merchants (
+  id              SERIAL        PRIMARY KEY,
+  user_id         INTEGER       NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  business_name   VARCHAR(150)  NOT NULL,
+  business_type   VARCHAR(100),
+  iban            VARCHAR(100)  NOT NULL,
+  webhook_url     TEXT,
+  api_key         TEXT          NOT NULL UNIQUE,
+  is_active       BOOLEAN       NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_merchants_user_id  ON merchants(user_id);
+CREATE INDEX idx_merchants_api_key  ON merchants(api_key);
+CREATE INDEX idx_merchants_is_active ON merchants(is_active);
+
+CREATE TRIGGER merchants_updated_at
+  BEFORE UPDATE ON merchants
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
+
+CREATE TYPE charge_status AS ENUM ('pending', 'completed', 'failed', 'expired', 'refunded');
+
+CREATE TABLE IF NOT EXISTS merchant_charges (
+  id              SERIAL        PRIMARY KEY,
+  merchant_id     INTEGER       NOT NULL REFERENCES merchants(id)  ON DELETE CASCADE,
+  customer_id     INTEGER       REFERENCES users(id)               ON DELETE SET NULL,
+  order_id        VARCHAR(100)  NOT NULL,
+  amount          NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  currency        VARCHAR(10)   NOT NULL DEFAULT 'EGP',
+  description     TEXT,
+  status          charge_status NOT NULL DEFAULT 'pending',
+  payment_token   TEXT          NOT NULL UNIQUE,
+  payment_url     TEXT          NOT NULL,
+  callback_url    TEXT,
+  customer_phone  VARCHAR(20),
+  paid_at         TIMESTAMP,
+  expires_at      TIMESTAMP     NOT NULL,
+  metadata        JSONB         DEFAULT '{}',
+  created_at      TIMESTAMP     NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_merchant_charges_merchant_id   ON merchant_charges(merchant_id);
+CREATE INDEX idx_merchant_charges_customer_id   ON merchant_charges(customer_id);
+CREATE INDEX idx_merchant_charges_order_id      ON merchant_charges(order_id);
+CREATE INDEX idx_merchant_charges_payment_token ON merchant_charges(payment_token);
+CREATE INDEX idx_merchant_charges_status        ON merchant_charges(status);
+
+CREATE TRIGGER merchant_charges_updated_at
+  BEFORE UPDATE ON merchant_charges
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+
+CREATE TYPE settlement_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+
+CREATE TABLE IF NOT EXISTS settlements (
+  id              SERIAL            PRIMARY KEY,
+  merchant_id     INTEGER           NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+  amount          NUMERIC(12, 2)    NOT NULL CHECK (amount > 0),
+  fee             NUMERIC(12, 2)    NOT NULL DEFAULT 0.00,
+  net_amount      NUMERIC(12, 2)    NOT NULL,
+  currency        VARCHAR(10)       NOT NULL DEFAULT 'EGP',
+  status          settlement_status NOT NULL DEFAULT 'pending',
+  iban            VARCHAR(100)      NOT NULL,
+  bank_reference  VARCHAR(100),
+  period_from     TIMESTAMP         NOT NULL,
+  period_to       TIMESTAMP         NOT NULL,
+  settled_at      TIMESTAMP,
+  notes           TEXT,
+  created_at      TIMESTAMP         NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP         NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_settlements_merchant_id ON settlements(merchant_id);
+CREATE INDEX idx_settlements_status      ON settlements(status);
+CREATE INDEX idx_settlements_created_at  ON settlements(created_at);
+
+CREATE TRIGGER settlements_updated_at
+  BEFORE UPDATE ON settlements
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Seed some settlements for testing
+INSERT INTO settlements
+  (merchant_id, amount, fee, net_amount, currency, status, iban, bank_reference, period_from, period_to, settled_at)
+VALUES
+  (1, 5000.00, 25.00, 4975.00, 'EGP', 'completed', 'EG380019000500000000263180002', 'BANK-REF-001', NOW() - INTERVAL '30 days', NOW() - INTERVAL '15 days', NOW() - INTERVAL '14 days'),
+  (1, 3000.00, 15.00, 2985.00, 'EGP', 'completed', 'EG380019000500000000263180002', 'BANK-REF-002', NOW() - INTERVAL '15 days', NOW() - INTERVAL '1 day',  NOW() - INTERVAL '1 day'),
+  (1, 1500.00, 7.50,  1492.50, 'EGP', 'pending',   'EG380019000500000000263180002', NULL,           NOW() - INTERVAL '1 day',  NOW(),                       NULL);

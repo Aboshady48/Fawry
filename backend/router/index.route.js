@@ -7,7 +7,7 @@ const adminRouter = require("../Admin/routers/admin.route");
 const walletRouter = require("../Wallet/router/walletIndex.route");
 const paymentRouter = require("../Payments/router/paymentIndex.route");
 const billRouter = require("../Bill/router/billIndex.route");
-
+const merchantRouter = require("../Merchant/router/merchantIndex.route");
 
 indexRouter.use("/auth", authRauthIndexRouterouter);
 indexRouter.use("/user", userRouter);
@@ -15,5 +15,6 @@ indexRouter.use("/admin", adminRouter);
 indexRouter.use("/wallet", walletRouter);
 indexRouter.use("/payment", paymentRouter);
 indexRouter.use("/bills", billRouter);
+indexRouter.use("/merchants", merchantRouter);
 
 module.exports = indexRouter;
