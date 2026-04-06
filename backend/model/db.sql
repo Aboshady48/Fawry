@@ -415,3 +415,76 @@ CREATE TABLE IF NOT EXISTS withdrawal_codes (
 CREATE INDEX idx_withdrawal_codes_user_id ON withdrawal_codes(user_id);
 CREATE INDEX idx_withdrawal_codes_code    ON withdrawal_codes(code);
 CREATE INDEX idx_withdrawal_codes_status  ON withdrawal_codes(status);
+
+
+
+CREATE TYPE notification_type AS ENUM (
+  'payment_received',
+  'payment_sent',
+  'bill_paid',
+  'topup_success',
+  'withdrawal_success',
+  'cashin_success',
+  'cashout_success',
+  'transfer_success',
+  'request_paid',
+  'account_suspended',
+  'account_activated',
+  'login_alert',
+  'general'
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id          SERIAL              PRIMARY KEY,
+  user_id     INTEGER             NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type        notification_type   NOT NULL DEFAULT 'general',
+  title       VARCHAR(150)        NOT NULL,
+  body        TEXT                NOT NULL,
+  is_read     BOOLEAN             NOT NULL DEFAULT FALSE,
+  metadata    JSONB               DEFAULT '{}',
+  created_at  TIMESTAMP           NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_id  ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read  ON notifications(is_read);
+CREATE INDEX idx_notifications_type     ON notifications(type);
+CREATE INDEX idx_notifications_created  ON notifications(created_at);
+
+-- Seed some test notifications
+INSERT INTO notifications (user_id, type, title, body, metadata)
+SELECT
+  id,
+  'topup_success',
+  'Wallet Top-up Successful',
+  'Your wallet has been topped up with 500.00 EGP',
+  '{"amount": 500, "currency": "EGP"}'
+FROM users WHERE role = 'customer' LIMIT 1;
+
+INSERT INTO notifications (user_id, type, title, body, metadata)
+SELECT
+  id,
+  'transfer_success',
+  'Transfer Successful',
+  'You have successfully sent 100.00 EGP',
+  '{"amount": 100, "currency": "EGP"}'
+FROM users WHERE role = 'customer' LIMIT 1;
+
+INSERT INTO notifications (user_id, type, title, body, metadata)
+SELECT
+  id,
+  'bill_paid',
+  'Bill Payment Successful',
+  'Your Egypt Electricity bill of 450.00 EGP has been paid',
+  '{"amount": 450, "biller": "Egypt Electricity"}'
+FROM users WHERE role = 'customer' LIMIT 1;
+
+
+
+INSERT INTO notifications (user_id, type, title, body, metadata) VALUES
+(9, 'topup_success',      'Wallet Top-up Successful',    'Your wallet has been topped up with 500.00 EGP',          '{"amount": 500,  "currency": "EGP"}'),
+(9, 'transfer_success',   'Transfer Successful',          'You have successfully sent 100.00 EGP',                   '{"amount": 100,  "currency": "EGP"}'),
+(9, 'payment_received',   'Payment Received',             'You received 100.00 EGP',                                 '{"amount": 100,  "currency": "EGP"}'),
+(9, 'bill_paid',          'Bill Payment Successful',      'Your Egypt Electricity bill of 450.00 EGP has been paid', '{"amount": 450,  "biller": "Egypt Electricity"}'),
+(9, 'withdrawal_success', 'Withdrawal Successful',        'You have withdrawn 200.00 EGP from your wallet',          '{"amount": 200,  "currency": "EGP"}'),
+(9, 'login_alert',        'New Login Detected',           'A new login was detected on your account',                '{"ip": "192.168.1.1"}'),
+(9, 'general',            'Welcome to Fawry!',            'Your account is ready. Start using your wallet today.',   '{}');
