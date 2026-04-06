@@ -338,3 +338,80 @@ VALUES
   (1, 5000.00, 25.00, 4975.00, 'EGP', 'completed', 'EG380019000500000000263180002', 'BANK-REF-001', NOW() - INTERVAL '30 days', NOW() - INTERVAL '15 days', NOW() - INTERVAL '14 days'),
   (1, 3000.00, 15.00, 2985.00, 'EGP', 'completed', 'EG380019000500000000263180002', 'BANK-REF-002', NOW() - INTERVAL '15 days', NOW() - INTERVAL '1 day',  NOW() - INTERVAL '1 day'),
   (1, 1500.00, 7.50,  1492.50, 'EGP', 'pending',   'EG380019000500000000263180002', NULL,           NOW() - INTERVAL '1 day',  NOW(),                       NULL);
+
+CREATE TABLE IF NOT EXISTS agents (
+  id              SERIAL        PRIMARY KEY,
+  user_id         INTEGER       NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  business_name   VARCHAR(150)  NOT NULL,
+  location        VARCHAR(255),
+  float_balance   NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+  is_active       BOOLEAN       NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMP     NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP     NOT NULL DEFAULT NOW()
+);
+
+CREATE TYPE agent_transaction_type AS ENUM ('cashin', 'cashout', 'float_topup');
+CREATE TYPE agent_transaction_status AS ENUM ('pending', 'completed', 'failed');
+
+CREATE TABLE IF NOT EXISTS agent_transactions (
+  id              SERIAL                    PRIMARY KEY,
+  agent_id        INTEGER                   NOT NULL REFERENCES agents(id)  ON DELETE CASCADE,
+  user_id         INTEGER                   NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  type            agent_transaction_type    NOT NULL,
+  status          agent_transaction_status  NOT NULL DEFAULT 'pending',
+  amount          NUMERIC(12,2)             NOT NULL CHECK (amount > 0),
+  fee             NUMERIC(12,2)             NOT NULL DEFAULT 0.00,
+  reference_no    TEXT                      NOT NULL UNIQUE,
+  note            TEXT,
+  created_at      TIMESTAMP                 NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_agents_user_id               ON agents(user_id);
+CREATE INDEX idx_agent_transactions_agent_id  ON agent_transactions(agent_id);
+CREATE INDEX idx_agent_transactions_user_id   ON agent_transactions(user_id);
+CREATE INDEX idx_agent_transactions_type      ON agent_transactions(type);
+
+CREATE TRIGGER agents_updated_at
+  BEFORE UPDATE ON agents
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Add agent role to user_role enum
+ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'agent';
+
+-- Seed a test agent
+INSERT INTO users (name, email, phone, password, role, is_verified, status)
+VALUES (
+  'Test Agent',
+  'agent@fawry.com',
+  '+20111000000',
+  '$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.',
+  'agent',
+  TRUE, 
+  'active'
+);
+
+INSERT INTO agents (user_id, business_name, location, float_balance)
+VALUES (
+  (SELECT id FROM users WHERE email = 'agent@fawry.com'),
+  'Fawry Agent Branch 1',
+  'Cairo, Egypt',
+  10000.00
+);
+
+CREATE TYPE withdrawal_code_status AS ENUM ('pending', 'used', 'expired', 'cancelled');
+
+CREATE TABLE IF NOT EXISTS withdrawal_codes (
+  id            SERIAL                  PRIMARY KEY,
+  user_id       INTEGER                 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code          VARCHAR(10)             NOT NULL UNIQUE,
+  amount        NUMERIC(12,2)           NOT NULL CHECK (amount > 0),
+  status        withdrawal_code_status  NOT NULL DEFAULT 'pending',
+  expires_at    TIMESTAMP               NOT NULL,
+  used_at       TIMESTAMP,
+  used_by_agent INTEGER                 REFERENCES agents(id),
+  created_at    TIMESTAMP               NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_withdrawal_codes_user_id ON withdrawal_codes(user_id);
+CREATE INDEX idx_withdrawal_codes_code    ON withdrawal_codes(code);
+CREATE INDEX idx_withdrawal_codes_status  ON withdrawal_codes(status);
