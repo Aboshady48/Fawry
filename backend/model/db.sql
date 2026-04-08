@@ -488,3 +488,33 @@ INSERT INTO notifications (user_id, type, title, body, metadata) VALUES
 (9, 'withdrawal_success', 'Withdrawal Successful',        'You have withdrawn 200.00 EGP from your wallet',          '{"amount": 200,  "currency": "EGP"}'),
 (9, 'login_alert',        'New Login Detected',           'A new login was detected on your account',                '{"ip": "192.168.1.1"}'),
 (9, 'general',            'Welcome to Fawry!',            'Your account is ready. Start using your wallet today.',   '{}');
+
+
+CREATE TYPE fraud_flag_status   AS ENUM ('open', 'reviewing', 'resolved', 'dismissed');
+CREATE TYPE fraud_flag_severity AS ENUM ('low', 'medium', 'high', 'critical');
+
+CREATE TABLE IF NOT EXISTS fraud_flags (
+  id              SERIAL              PRIMARY KEY,
+  transaction_id  INTEGER             REFERENCES transactions(id) ON DELETE SET NULL,
+  user_id         INTEGER             NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  flag_type       VARCHAR(100)        NOT NULL,
+  severity        fraud_flag_severity NOT NULL DEFAULT 'medium',
+  status          fraud_flag_status   NOT NULL DEFAULT 'open',
+  description     TEXT                NOT NULL,
+  metadata        JSONB               DEFAULT '{}',
+  resolved_by     INTEGER             REFERENCES users(id),
+  resolution_note TEXT,
+  resolved_at     TIMESTAMP,
+  created_at      TIMESTAMP           NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP           NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_fraud_flags_user_id        ON fraud_flags(user_id);
+CREATE INDEX idx_fraud_flags_status         ON fraud_flags(status);
+CREATE INDEX idx_fraud_flags_severity       ON fraud_flags(severity);
+CREATE INDEX idx_fraud_flags_transaction_id ON fraud_flags(transaction_id);
+CREATE INDEX idx_fraud_flags_created_at     ON fraud_flags(created_at);
+
+CREATE TRIGGER fraud_flags_updated_at
+  BEFORE UPDATE ON fraud_flags
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
